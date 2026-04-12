@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MediTrack</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#0f1f2e;--navy2:#1a2f42;--navy3:#243d52;
+  --teal:#0ea5a0;--teal2:#0d9490;--teal-light:#e0f7f6;
+  --green:#16a34a;--green-light:#dcfce7;
+  --amber:#d97706;--amber-light:#fef3c7;
+  --orange:#ea580c;--orange-light:#ffedd5;
+  --red:#dc2626;--red-light:#fee2e2;
+  --bg:#f4f6f5;--surface:#ffffff;
+  --border:#e4e8e6;--border2:#d1d9d5;
+  --text:#0f1f2e;--text2:#4a5e6a;--text3:#7a909c;
+  --radius:12px;--radius-sm:8px;--radius-lg:16px;
+}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column}
+button{font-family:inherit;cursor:pointer;border:none;outline:none}
+input,select,textarea{font-family:inherit;outline:none}
+a{text-decoration:none;color:inherit}
+
+/* Layout */
+.app{display:flex;min-height:100vh}
+.sidebar{width:240px;background:var(--navy);color:#fff;display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:100}
+.sidebar-logo{padding:24px 20px;border-bottom:1px solid var(--navy3);display:flex;align-items:center;gap:10px}
+.logo-icon{width:34px;height:34px;background:var(--teal);border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.logo-icon svg{width:18px;height:18px;fill:#fff}
+.logo-name{font-size:18px;font-weight:700;letter-spacing:-0.3px}
+.logo-sub{font-size:10px;color:#8ba4b8;font-weight:500;letter-spacing:0.5px;text-transform:uppercase;margin-top:1px}
+.sidebar-nav{padding:16px 12px;flex:1;overflow-y:auto}
+.nav-section{margin-bottom:8px}
+.nav-label{font-size:10px;font-weight:600;color:#5a7a90;text-transform:uppercase;letter-spacing:0.8px;padding:6px 10px 4px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--radius-sm);cursor:pointer;font-size:14px;font-weight:500;color:#a8c4d4;transition:all 0.15s;margin-bottom:2px}
+.nav-item:hover{background:var(--navy3);color:#fff}
+.nav-item.active{background:var(--teal);color:#fff}
+.nav-item svg{width:16px;height:16px;flex-shrink:0}
+.sidebar-footer{padding:16px;border-top:1px solid var(--navy3)}
+.api-key-status{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;margin-left:auto}
+.api-key-status.set{background:#14532d;color:#86efac}
+.api-key-status.unset{background:#7f1d1d;color:#fca5a5}
+/* Settings page */
+.settings-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;max-width:560px}
+.settings-section{margin-bottom:28px}
+.settings-section:last-child{margin-bottom:0}
+.settings-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px}
+.settings-desc{font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:14px}
+.key-input-row{display:flex;gap:8px}
+.key-input-row input{flex:1}
+.key-preview{font-size:12px;color:var(--text3);margin-top:6px;font-family:monospace}
+.api-info-box{background:#f0f9ff;border:1px solid #bae6fd;border-radius:var(--radius-sm);padding:14px;margin-bottom:14px}
+.api-info-box p{font-size:13px;color:#0c4a6e;line-height:1.6}
+.api-info-box a{color:#0369a1;font-weight:600}
+.api-info-box code{background:#dbeafe;padding:1px 5px;border-radius:4px;font-size:12px}
+.alert-count{background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:auto}
+
+.main{margin-left:240px;flex:1;display:flex;flex-direction:column;min-height:100vh}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 28px;height:58px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.page-title{font-size:17px;font-weight:700;color:var(--text)}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.content{padding:28px;flex:1}
+
+/* Notification bar */
+.notif-bar{background:linear-gradient(90deg,#7c2d12,#991b1b);color:#fff;padding:10px 28px;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:500}
+.notif-bar svg{width:16px;height:16px;flex-shrink:0;opacity:0.9}
+.notif-bar span{flex:1}
+.notif-bar .close-btn{background:none;color:#fff;opacity:0.7;font-size:18px;line-height:1;padding:0 4px}
+.notif-bar .close-btn:hover{opacity:1}
+
+/* Cards & Stats */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px}
+.stat-label{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px}
+.stat-val{font-size:28px;font-weight:700;line-height:1}
+.stat-sub{font-size:12px;color:var(--text2);margin-top:4px}
+.stat-card.s-total .stat-val{color:var(--navy)}
+.stat-card.s-fresh .stat-val{color:var(--green)}
+.stat-card.s-warn .stat-val{color:var(--amber)}
+.stat-card.s-exp .stat-val{color:var(--red)}
+.stat-card.s-crit .stat-val{color:var(--orange)}
+
+/* Medicine list */
+.list-controls{display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+.search-box{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 14px;flex:1;min-width:200px}
+.search-box svg{width:15px;height:15px;color:var(--text3);flex-shrink:0}
+.search-box input{border:none;background:none;font-size:14px;color:var(--text);width:100%}
+.search-box input::placeholder{color:var(--text3)}
+select.filter-sel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:13px;color:var(--text);font-weight:500}
+
+.med-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.med-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;transition:box-shadow 0.15s,border-color 0.15s;display:flex;flex-direction:column}
+.med-card:hover{border-color:var(--border2);box-shadow:0 4px 16px rgba(0,0,0,0.07)}
+.med-card-top{display:flex;gap:14px;padding:16px;flex:1}
+.med-photo{width:70px;height:70px;border-radius:var(--radius-sm);object-fit:cover;background:var(--bg);border:1px solid var(--border);flex-shrink:0}
+.med-photo-placeholder{width:70px;height:70px;border-radius:var(--radius-sm);background:var(--bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--text3)}
+.med-photo-placeholder svg{width:28px;height:28px}
+.med-info{flex:1;min-width:0}
+.med-name{font-size:15px;font-weight:700;color:var(--text);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.med-cat{font-size:12px;color:var(--text2);margin-bottom:8px;font-weight:500}
+.med-use{font-size:12px;color:var(--text3);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.med-card-foot{border-top:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;justify-content:space-between}
+.status-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;letter-spacing:0.2px}
+.status-badge.fresh{background:var(--green-light);color:#15803d}
+.status-badge.warning{background:var(--amber-light);color:#92400e}
+.status-badge.critical{background:var(--orange-light);color:#9a3412}
+.status-badge.expired{background:var(--red-light);color:#991b1b}
+.med-expiry-txt{font-size:12px;color:var(--text3);font-weight:500}
+.med-actions{display:flex;gap:6px}
+.icon-btn{width:30px;height:30px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;transition:background 0.12s;background:none}
+.icon-btn:hover{background:var(--bg)}
+.icon-btn svg{width:15px;height:15px;color:var(--text2)}
+.icon-btn.del:hover svg{color:var(--red)}
+.empty-state{text-align:center;padding:60px 20px;color:var(--text2)}
+.empty-state svg{width:48px;height:48px;color:var(--border2);margin:0 auto 12px;display:block}
+.empty-state p{font-size:15px;margin-bottom:4px;font-weight:600;color:var(--text)}
+.empty-state span{font-size:13px}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:var(--radius-sm);font-size:14px;font-weight:600;transition:all 0.15s;cursor:pointer}
+.btn-primary{background:var(--teal);color:#fff}
+.btn-primary:hover{background:var(--teal2)}
+.btn-outline{background:var(--surface);border:1px solid var(--border2);color:var(--text)}
+.btn-outline:hover{background:var(--bg)}
+.btn-danger{background:var(--red);color:#fff}
+.btn-danger:hover{background:#b91c1c}
+.btn-ai{background:#f0f9ff;border:1px solid #bae6fd;color:#0369a1}
+.btn-ai:hover{background:#e0f2fe}
+.btn-ai.scanning{opacity:0.7;cursor:not-allowed}
+.btn svg{width:15px;height:15px}
+.btn-lg{padding:12px 22px;font-size:15px}
+
+/* Form */
+.form-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;max-width:640px}
+.form-section{margin-bottom:28px}
+.form-section-title{font-size:12px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.form-section-title::after{content:'';flex:1;height:1px;background:var(--teal-light)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-group{margin-bottom:14px;display:flex;flex-direction:column;gap:5px}
+.form-group.full{grid-column:1/-1}
+label.form-label{font-size:12px;font-weight:600;color:var(--text2)}
+.form-input{background:var(--bg);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:10px 13px;font-size:14px;color:var(--text);transition:border-color 0.15s,background 0.15s;width:100%}
+.form-input:focus{border-color:var(--teal);background:var(--surface)}
+.form-input::placeholder{color:var(--text3)}
+select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237a909c' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
+textarea.form-input{resize:vertical;min-height:80px;line-height:1.5}
+.form-hint{font-size:11px;color:var(--text3);margin-top:2px}
+.required{color:var(--red);margin-left:2px}
+.form-actions{display:flex;gap:10px;margin-top:20px}
+
+/* Upload zone */
+.upload-zone{border:2px dashed var(--border2);border-radius:var(--radius);padding:24px;text-align:center;cursor:pointer;transition:all 0.15s;background:var(--bg);position:relative}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--teal);background:var(--teal-light)}
+.upload-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.upload-zone svg{width:32px;height:32px;color:var(--text3);margin:0 auto 8px;display:block}
+.upload-zone p{font-size:13px;color:var(--text2);font-weight:500}
+.upload-zone span{font-size:11px;color:var(--text3)}
+.photo-preview{position:relative;display:inline-block}
+.photo-preview img{max-height:160px;max-width:100%;border-radius:var(--radius-sm);border:1px solid var(--border)}
+.photo-preview .remove-photo{position:absolute;top:-8px;right:-8px;width:22px;height:22px;background:var(--red);color:#fff;border-radius:50%;font-size:14px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:none;line-height:1}
+.ai-scan-row{display:flex;align-items:center;gap:10px;margin-top:10px;justify-content:center}
+.ai-badge{font-size:10px;background:#fef9c3;color:#854d0e;padding:2px 7px;border-radius:20px;font-weight:700;letter-spacing:0.3px}
+
+/* Spinner */
+.spin{animation:spin 0.8s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Detail panel (drawer) */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:200;display:none;align-items:flex-start;justify-content:flex-end}
+.overlay.open{display:flex}
+.detail-panel{width:380px;background:var(--surface);height:100vh;overflow-y:auto;animation:slideIn 0.2s ease}
+@keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}
+.detail-header{padding:20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--surface);z-index:1}
+.detail-header h3{font-size:16px;font-weight:700}
+.detail-body{padding:20px}
+.detail-photo{width:100%;height:180px;object-fit:cover;border-radius:var(--radius);margin-bottom:16px;border:1px solid var(--border)}
+.detail-photo-ph{width:100%;height:120px;background:var(--bg);border-radius:var(--radius);margin-bottom:16px;display:flex;align-items:center;justify-content:center;border:1px solid var(--border);color:var(--text3)}
+.detail-photo-ph svg{width:40px;height:40px}
+.detail-row{display:flex;margin-bottom:12px;gap:8px}
+.detail-lbl{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px;width:80px;flex-shrink:0;padding-top:2px}
+.detail-val{font-size:14px;color:var(--text);font-weight:500;flex:1;line-height:1.5}
+
+/* Confirm dialog */
+.confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:300;display:none;align-items:center;justify-content:center}
+.confirm-overlay.open{display:flex}
+.confirm-box{background:var(--surface);border-radius:var(--radius-lg);padding:28px;max-width:340px;width:90%;text-align:center}
+.confirm-icon{width:48px;height:48px;background:var(--red-light);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 14px}
+.confirm-icon svg{width:22px;height:22px;color:var(--red)}
+.confirm-box h3{font-size:17px;font-weight:700;margin-bottom:6px}
+.confirm-box p{font-size:13px;color:var(--text2);margin-bottom:20px;line-height:1.5}
+.confirm-actions{display:flex;gap:10px}
+.confirm-actions button{flex:1}
+
+/* Toast */
+.toast-container{position:fixed;bottom:24px;right:24px;z-index:500;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{background:var(--navy);color:#fff;padding:12px 16px;border-radius:var(--radius);font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px;max-width:300px;animation:toastIn 0.25s ease,toastOut 0.25s ease 2.75s forwards;pointer-events:auto}
+.toast.success{background:#166534}
+.toast.error{background:#991b1b}
+@keyframes toastIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes toastOut{to{opacity:0;transform:translateY(10px)}}
+
+/* Dashboard-specific */
+.dash-section-title{font-size:15px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between}
+.see-all{font-size:12px;color:var(--teal);font-weight:600;cursor:pointer}
+.see-all:hover{text-decoration:underline}
+.expiry-list{display:flex;flex-direction:column;gap:8px}
+.expiry-item{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;cursor:pointer;transition:border-color 0.12s}
+.expiry-item:hover{border-color:var(--border2)}
+.expiry-thumb{width:38px;height:38px;border-radius:var(--radius-sm);object-fit:cover;border:1px solid var(--border);background:var(--bg);flex-shrink:0}
+.expiry-thumb-ph{width:38px;height:38px;border-radius:var(--radius-sm);background:var(--bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--text3)}
+.expiry-thumb-ph svg{width:18px;height:18px}
+.expiry-name{font-size:14px;font-weight:600;flex:1}
+.expiry-days{font-size:12px;font-weight:700;padding:2px 8px;border-radius:20px}
+.expiry-days.exp{background:var(--red-light);color:var(--red)}
+.expiry-days.crit{background:var(--orange-light);color:var(--orange)}
+.expiry-days.warn{background:var(--amber-light);color:var(--amber)}
+
+.dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:24px}
+@media(max-width:900px){.dash-grid{grid-template-columns:1fr}.stats-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:640px){.sidebar{width:0;overflow:hidden}.main{margin-left:0}.form-row{grid-template-columns:1fr}}
+
+/* DB Loading overlay */
+.db-loader{position:fixed;inset:0;background:rgba(15,31,46,0.7);z-index:999;display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px;color:#fff}
+.db-loader.show{display:flex}
+.db-loader p{font-size:14px;font-weight:500;opacity:0.8}
+.loader-ring{width:44px;height:44px;border:3px solid rgba(255,255,255,0.2);border-top-color:var(--teal);border-radius:50%;animation:spin 0.8s linear infinite}
+</style>
+</head>
+<body>
+
+<!-- DB Loading overlay -->
+<div class="db-loader" id="db-loader">
+  <div class="loader-ring"></div>
+  <p>Connecting to database…</p>
+</div>
+
+<div class="app">
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 15h-2v-2h2zm0-4h-2V7h2z"/></svg>
+    </div>
+    <div>
+      <div class="logo-name">MediTrack</div>
+      <div class="logo-sub">Expiry Tracker</div>
+    </div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section">
+      <div class="nav-label">Overview</div>
+      <div class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Dashboard
+        <span class="alert-count" id="alert-count" style="display:none">0</span>
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Medicines</div>
+      <div class="nav-item" data-page="add" onclick="navigate('add')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        Add Medicine
+      </div>
+      <div class="nav-item" data-page="medicines" onclick="navigate('medicines')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/></svg>
+        My Medicines
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Config</div>
+      <div class="nav-item" data-page="settings" onclick="navigate('settings')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06-.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+        <span class="api-key-status" id="key-badge"></span>
+      </div>
+    </div>
+  </nav>
+  <div class="sidebar-footer" style="font-size:11px;color:#5a7a90;text-align:center">
+    ☁️ Synced with Supabase
+  </div>
+</aside>
+
+<!-- Main -->
+<div class="main">
+
+  <!-- Notification bar -->
+  <div class="notif-bar" id="notif-bar" style="display:none">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    <span id="notif-text"></span>
+    <button class="close-btn" onclick="document.getElementById('notif-bar').style.display='none'">×</button>
+  </div>
+
+  <!-- Top bar -->
+  <div class="topbar">
+    <div class="page-title" id="page-title">Dashboard</div>
+    <div class="topbar-right">
+      <button class="btn btn-primary" onclick="navigate('add')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:14px;height:14px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Medicine
+      </button>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="content" id="content"></div>
+</div>
+</div>
+
+<!-- Detail panel -->
+<div class="overlay" id="detail-overlay" onclick="if(event.target===this)closeDetail()">
+  <div class="detail-panel">
+    <div class="detail-header">
+      <h3>Medicine Details</h3>
+      <button class="icon-btn" onclick="closeDetail()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="detail-body" id="detail-body"></div>
+  </div>
+</div>
+
+<!-- Confirm dialog -->
+<div class="confirm-overlay" id="confirm-overlay">
+  <div class="confirm-box">
+    <div class="confirm-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+    </div>
+    <h3>Delete Medicine?</h3>
+    <p>This will permanently remove this medicine from your tracker. This action cannot be undone.</p>
+    <div class="confirm-actions">
+      <button class="btn btn-outline" onclick="closeConfirm()">Cancel</button>
+      <button class="btn btn-danger" id="confirm-yes">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container" id="toasts"></div>
+
+<script>
+// ─── Supabase Config ──────────────────────────────────────────────────────────
+// To update these later, just replace the two values below
+const SUPABASE_URL = 'https://jklyhtdfxlpbksllxszr.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImprbHlodGRmeGxwYmtzbGx4c3pyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5ODQ1NTMsImV4cCI6MjA5MTU2MDU1M30.OAzszx2K7vNER9l2eUGog8svDexH5t_DRLkLi-cEFjY';
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ─── State ────────────────────────────────────────────────────────────────────
+let medicines = [];
+let apiKey = localStorage.getItem('meditrack_gemini_key') || '';
+let currentPage = 'dashboard';
+let pendingDeleteId = null;
+let searchQ = '';
+let filterCat = 'All';
+let filterStatus = 'All';
+let formPhotoBase64 = null;
+let formPhotoMime = null;
+
+// ─── DB Helpers ───────────────────────────────────────────────────────────────
+function rowToMed(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    category: row.category,
+    quantity: row.quantity || '',
+    use: row.med_use || '',
+    expiryDate: row.expiry_date,
+    photoURL: row.photo_url || '',
+    createdAt: row.created_at
+  };
+}
+
+function showLoader(show) {
+  const el = document.getElementById('db-loader');
+  if (el) el.className = show ? 'db-loader show' : 'db-loader';
+}
+
+async function loadMedicines() {
+  showLoader(true);
+  try {
+    const { data, error } = await db
+      .from('medicines')
+      .select('*')
+      .order('expiry_date', { ascending: true });
+    if (error) throw error;
+    medicines = (data || []).map(rowToMed);
+  } catch(e) {
+    console.error('Load error:', e);
+    toast('Could not load from database. Check console for details.', 'error');
+  }
+  showLoader(false);
+}
+
+function dataURLtoBlob(dataURL) {
+  const arr = dataURL.split(',');
+  const mime = arr[0].match(/:(.*?);/)[1];
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while(n--) u8arr[n] = bstr.charCodeAt(n);
+  return new Blob([u8arr], { type: mime });
+}
+
+async function uploadPhoto(id, base64) {
+  try {
+    const compressed = await compressImage(base64, 400);
+    const blob = dataURLtoBlob(compressed);
+    const fileName = `${id}.jpg`;
+    const { error: upErr } = await db.storage
+      .from('medicine-photos')
+      .upload(fileName, blob, { contentType: 'image/jpeg', upsert: true });
+    if (upErr) { console.error('Photo upload error:', upErr); return ''; }
+    const { data } = db.storage.from('medicine-photos').getPublicUrl(fileName);
+    return data.publicUrl;
+  } catch(e) {
+    console.error('Photo upload failed:', e);
+    return '';
+  }
+}
+
+// ─── Utilities ────────────────────────────────────────────────────────────────
+function daysUntil(ts) {
+  const now = new Date(); now.setHours(0,0,0,0);
+  const exp = new Date(ts); exp.setHours(0,0,0,0);
+  return Math.round((exp - now) / 86400000);
+}
+
+function getStatus(ts) {
+  const d = daysUntil(ts);
+  if (d < 0) return 'expired';
+  if (d < 60) return 'critical';
+  if (d < 180) return 'warning';
+  return 'fresh';
+}
+
+function statusLabel(ts) {
+  const d = daysUntil(ts);
+  if (d < 0) return {cls:'expired', txt:'Expired'};
+  if (d === 0) return {cls:'critical', txt:'Expires today'};
+  if (d < 60) return {cls:'critical', txt:`${d}d left`};
+  if (d < 180) return {cls:'warning', txt:`${d}d left`};
+  return {cls:'fresh', txt:`${d}d left`};
+}
+
+function fmtDate(ts) {
+  return new Date(ts).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
+}
+
+function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+
+function toast(msg, type='') {
+  const c = document.getElementById('toasts');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;flex-shrink:0">${
+    type==='success' ? '<polyline points="20 6 9 17 4 12"/>' :
+    type==='error' ? '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>' :
+    '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>'
+  }</svg>${msg}`;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 3200);
+}
+
+function compressImage(dataUrl, maxSize=300) {
+  return new Promise(res => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let w = img.width, h = img.height;
+      if (w > h) { if (w > maxSize) { h = Math.round(h * maxSize/w); w = maxSize; } }
+      else { if (h > maxSize) { w = Math.round(w * maxSize/h); h = maxSize; } }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      res(canvas.toDataURL('image/jpeg', 0.7));
+    };
+    img.src = dataUrl;
+  });
+}
+
+// ─── Notifications ────────────────────────────────────────────────────────────
+function checkNotifications() {
+  const urgent = medicines.filter(m => {
+    const d = daysUntil(m.expiryDate);
+    return d >= 0 && d <= 30;
+  });
+  const expired = medicines.filter(m => daysUntil(m.expiryDate) < 0);
+  const bar = document.getElementById('notif-bar');
+  const cnt = document.getElementById('alert-count');
+  const total = urgent.length + expired.length;
+  if (total > 0) {
+    cnt.textContent = total; cnt.style.display = '';
+    let msg = '';
+    if (expired.length) msg += `${expired.length} medicine${expired.length>1?'s are':' is'} expired. `;
+    if (urgent.length) msg += `${urgent.length} medicine${urgent.length>1?'s expire':' expires'} within 30 days.`;
+    document.getElementById('notif-text').textContent = msg.trim();
+    bar.style.display = 'flex';
+  } else {
+    cnt.style.display = 'none';
+    bar.style.display = 'none';
+  }
+}
+
+// ─── Navigation ───────────────────────────────────────────────────────────────
+function navigate(page) {
+  currentPage = page;
+  document.querySelectorAll('.nav-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.page === page);
+  });
+  const titles = {dashboard:'Dashboard', add:'Add Medicine', medicines:'My Medicines', settings:'Settings'};
+  document.getElementById('page-title').textContent = titles[page] || page;
+  render();
+}
+
+function render() {
+  const c = document.getElementById('content');
+  if (currentPage === 'dashboard') c.innerHTML = renderDashboard();
+  else if (currentPage === 'add') { c.innerHTML = renderAddForm(); bindForm(); }
+  else if (currentPage === 'medicines') c.innerHTML = renderMedicines();
+  else if (currentPage === 'settings') c.innerHTML = renderSettings();
+}
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+function renderDashboard() {
+  const total = medicines.length;
+  const fresh = medicines.filter(m => getStatus(m.expiryDate)==='fresh').length;
+  const warn = medicines.filter(m => getStatus(m.expiryDate)==='warning').length;
+  const crit = medicines.filter(m => getStatus(m.expiryDate)==='critical').length;
+  const exp = medicines.filter(m => getStatus(m.expiryDate)==='expired').length;
+
+  const urgent = [...medicines].filter(m => daysUntil(m.expiryDate) <= 90)
+    .sort((a,b) => a.expiryDate - b.expiryDate).slice(0,8);
+
+  return `
+  <div class="stats-grid">
+    <div class="stat-card s-total">
+      <div class="stat-label">Total Medicines</div>
+      <div class="stat-val">${total}</div>
+      <div class="stat-sub">in your cabinet</div>
+    </div>
+    <div class="stat-card s-fresh">
+      <div class="stat-label">Fresh</div>
+      <div class="stat-val">${fresh}</div>
+      <div class="stat-sub">&gt;180 days left</div>
+    </div>
+    <div class="stat-card s-warn">
+      <div class="stat-label">Expiring Soon</div>
+      <div class="stat-val">${warn + crit}</div>
+      <div class="stat-sub">within 6 months</div>
+    </div>
+    <div class="stat-card s-exp">
+      <div class="stat-label">Expired</div>
+      <div class="stat-val">${exp}</div>
+      <div class="stat-sub">dispose safely</div>
+    </div>
+  </div>
+
+  ${total === 0 ? `
+  <div class="empty-state" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);margin-top:12px">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/></svg>
+    <p>Your medicine cabinet is empty</p>
+    <span>Add your first medicine to get started</span>
+    <div style="margin-top:16px"><button class="btn btn-primary" onclick="navigate('add')">Add First Medicine</button></div>
+  </div>` : urgent.length > 0 ? `
+  <div class="dash-section-title">
+    Needs Attention
+    <span class="see-all" onclick="navigate('medicines')">View all →</span>
+  </div>
+  <div class="expiry-list">
+    ${urgent.map(m => {
+      const d = daysUntil(m.expiryDate);
+      const cls = d<0?'exp':d<60?'crit':'warn';
+      const daysText = d<0?`${Math.abs(d)}d ago`:d===0?'Today':`${d}d`;
+      return `<div class="expiry-item" onclick="openDetail('${m.id}')">
+        ${m.photoURL ? `<img class="expiry-thumb" src="${m.photoURL}" alt="">` : `<div class="expiry-thumb-ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 14h-2v-4h2zm0-6h-2V7h2z"/></svg></div>`}
+        <div class="expiry-name">${m.name}</div>
+        <div class="expiry-days ${cls}">${daysText}</div>
+      </div>`;
+    }).join('')}
+  </div>` : `
+  <div class="empty-state" style="background:var(--green-light);border:1px solid #bbf7d0;border-radius:var(--radius-lg);margin-top:12px">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="1.5"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+    <p style="color:#15803d">All medicines are in good shape!</p>
+    <span style="color:#166534">Nothing expiring within the next 3 months.</span>
+  </div>`}`;
+}
+
+// ─── Medicine List ─────────────────────────────────────────────────────────────
+function renderMedicines() {
+  const cats = ['All', ...new Set(medicines.map(m => m.category))];
+  let filtered = medicines.filter(m => {
+    if (searchQ && !m.name.toLowerCase().includes(searchQ.toLowerCase())) return false;
+    if (filterCat !== 'All' && m.category !== filterCat) return false;
+    if (filterStatus !== 'All' && getStatus(m.expiryDate) !== filterStatus.toLowerCase()) return false;
+    return true;
+  }).sort((a,b) => a.expiryDate - b.expiryDate);
+
+  return `
+  <div class="list-controls">
+    <div class="search-box">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input placeholder="Search medicines..." value="${searchQ}" oninput="searchQ=this.value;renderInPlace()">
+    </div>
+    <select class="filter-sel" onchange="filterCat=this.value;renderInPlace()">
+      ${cats.map(c => `<option value="${c}" ${filterCat===c?'selected':''}>${c}</option>`).join('')}
+    </select>
+    <select class="filter-sel" onchange="filterStatus=this.value;renderInPlace()">
+      ${['All','fresh','warning','critical','expired'].map(s => `<option value="${s}" ${filterStatus===s?'selected':''}>${s==='All'?'All Status':s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('')}
+    </select>
+  </div>
+  ${filtered.length === 0 ? `
+  <div class="empty-state">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <p>${medicines.length === 0 ? 'No medicines yet' : 'No results found'}</p>
+    <span>${medicines.length === 0 ? 'Add your first medicine to start tracking' : 'Try a different search or filter'}</span>
+  </div>` : `
+  <div class="med-grid">
+    ${filtered.map(m => {
+      const sl = statusLabel(m.expiryDate);
+      return `<div class="med-card" id="mc-${m.id}">
+        <div class="med-card-top" onclick="openDetail('${m.id}')" style="cursor:pointer">
+          ${m.photoURL ? `<img class="med-photo" src="${m.photoURL}" alt="${m.name}">` : `<div class="med-photo-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>`}
+          <div class="med-info">
+            <div class="med-name">${m.name}</div>
+            <div class="med-cat">${m.category}${m.quantity ? ' · '+m.quantity : ''}</div>
+            ${m.use ? `<div class="med-use">${m.use}</div>` : ''}
+          </div>
+        </div>
+        <div class="med-card-foot">
+          <div>
+            <div class="status-badge ${sl.cls}">${sl.txt}</div>
+            <div class="med-expiry-txt" style="margin-top:4px">Exp: ${fmtDate(m.expiryDate)}</div>
+          </div>
+          <div class="med-actions">
+            <button class="icon-btn del" title="Delete" onclick="confirmDelete('${m.id}')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`}`;
+}
+
+function renderInPlace() {
+  document.getElementById('content').innerHTML = renderMedicines();
+}
+
+// ─── Add Form ─────────────────────────────────────────────────────────────────
+function renderAddForm() {
+  const cats = ['Tablet','Capsule','Syrup','Ointment','Injection','Drops','Inhaler','Powder','Other'];
+  const now = new Date();
+  const months = Array.from({length:12},(_,i)=>i+1);
+  const years = Array.from({length:12},(_,i)=>now.getFullYear()+i);
+  return `
+  <div class="form-card">
+    <div class="form-section">
+      <div class="form-section-title">📷 Medicine Photo</div>
+      <div id="upload-area">
+        <div class="upload-zone" id="upload-zone">
+          <input type="file" accept="image/*" id="photo-input" onchange="handlePhotoChange(event)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+          <p>Upload a photo of your medicine</p>
+          <span>PNG, JPG up to 5MB — or drag & drop</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">💊 Medicine Details</div>
+      <div class="form-group">
+        <label class="form-label">Medicine Name <span class="required">*</span></label>
+        <input class="form-input" id="f-name" placeholder="e.g., Paracetamol 500mg" required>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Category <span class="required">*</span></label>
+          <select class="form-input" id="f-cat">
+            <option value="">Select category</option>
+            ${cats.map(c=>`<option value="${c}">${c}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Quantity</label>
+          <input class="form-input" id="f-qty" placeholder="e.g., 10 tablets, 100ml">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Basic Use / Purpose</label>
+        <textarea class="form-input" id="f-use" placeholder="e.g., For fever and mild pain relief"></textarea>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">📅 Expiry Date</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Month <span class="required">*</span></label>
+          <select class="form-input" id="f-month">
+            <option value="">Select month</option>
+            ${months.map(m=>`<option value="${m}">${String(m).padStart(2,'0')} — ${new Date(0,m-1).toLocaleString('en',{month:'long'})}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Year <span class="required">*</span></label>
+          <select class="form-input" id="f-year">
+            <option value="">Select year</option>
+            ${years.map(y=>`<option value="${y}">${y}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="form-hint">Expiry is set to the last day of the selected month.</div>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn btn-outline" onclick="navigate('medicines')">Cancel</button>
+      <button class="btn btn-primary btn-lg" id="save-btn" onclick="saveMedicine()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:15px;height:15px"><polyline points="20 6 9 17 4 12"/></svg>
+        Save Medicine
+      </button>
+    </div>
+  </div>`;
+}
+
+function bindForm() {
+  formPhotoBase64 = null;
+  formPhotoMime = null;
+  const zone = document.getElementById('upload-zone');
+  if (!zone) return;
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('drag');
+    const f = e.dataTransfer.files[0];
+    if (f && f.type.startsWith('image/')) processPhoto(f);
+  });
+}
+
+async function handlePhotoChange(e) {
+  const f = e.target.files[0];
+  if (!f) return;
+  if (!f.type.startsWith('image/')) { toast('Please select an image file','error'); return; }
+  if (f.size > 5*1024*1024) { toast('File too large (max 5MB)','error'); return; }
+  await processPhoto(f);
+}
+
+async function processPhoto(file) {
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const raw = e.target.result;
+    const compressed = await compressImage(raw, 400);
+    formPhotoBase64 = compressed;
+    formPhotoMime = file.type;
+    document.getElementById('upload-area').innerHTML = `
+      <div class="photo-preview" style="text-align:center">
+        <img src="${compressed}" style="max-height:180px;max-width:100%;border-radius:var(--radius-sm);border:1px solid var(--border)">
+        <button class="remove-photo" onclick="removePhoto()">×</button>
+      </div>
+      <div class="ai-scan-row">
+        <button class="btn btn-ai" id="scan-btn" onclick="scanWithAI()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          Auto-fill with AI
+        </button>
+        <span class="ai-badge">✦ Gemini AI ✓</span>
+      </div>`;
+  };
+  reader.readAsDataURL(file);
+}
+
+function removePhoto() {
+  formPhotoBase64 = null;
+  formPhotoMime = null;
+  document.getElementById('upload-area').innerHTML = `
+    <div class="upload-zone" id="upload-zone">
+      <input type="file" accept="image/*" id="photo-input" onchange="handlePhotoChange(event)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+      <p>Upload a photo of your medicine</p>
+      <span>PNG, JPG up to 5MB — or drag & drop</span>
+    </div>`;
+  bindForm();
+}
+
+// ─── Gemini AI Scan ────────────────────────────────────────────────────────────
+async function scanWithAI() {
+  if (!formPhotoBase64) return;
+  if (!apiKey) {
+    toast('Add your Gemini API key in Settings first', 'error');
+    navigate('settings');
+    return;
+  }
+  const btn = document.getElementById('scan-btn');
+  btn.disabled = true;
+  btn.classList.add('scanning');
+  btn.innerHTML = `<span class="spin">⟳</span> Scanning…`;
+
+  const prompt = `You are a medicine label reader. Analyze this medicine packaging image and extract:
+- name: full medicine name with strength (e.g. "Paracetamol 500mg")
+- category: one of [Tablet, Capsule, Syrup, Ointment, Injection, Drops, Inhaler, Powder, Other]
+- expiryMonth: number 1-12
+- expiryYear: 4-digit year
+- quantity: packaging quantity (e.g. "10 tablets", "100ml")
+- use: brief purpose of medicine in 1 sentence
+Respond ONLY with valid JSON. No markdown, no explanation. If a field is unclear, use null.`;
+
+  const FREE_MODELS = [
+    'qwen/qwen2.5-vl-32b-instruct:free',
+    'google/gemma-4-31b-it:free',
+    'meta-llama/llama-4-scout:free',
+    'openrouter/auto'
+  ];
+
+  const tryModel = async (model) => {
+    const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+        'HTTP-Referer': window.location.href,
+        'X-Title': 'MediTrack'
+      },
+      body: JSON.stringify({
+        model,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'text', text: prompt },
+            { type: 'image_url', image_url: { url: formPhotoBase64 } }
+          ]
+        }],
+        temperature: 0
+      })
+    });
+    const data = await resp.json();
+    console.log(`[MediTrack] Model ${model}:`, data);
+    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+    const text = data.choices?.[0]?.message?.content || '';
+    if (!text) throw new Error('Empty response');
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('No JSON in response');
+    return JSON.parse(jsonMatch[0]);
+  };
+
+  let parsed = null;
+  let lastError = '';
+  for (const model of FREE_MODELS) {
+    try {
+      parsed = await tryModel(model);
+      break;
+    } catch(e) {
+      console.warn(`[MediTrack] ${model} failed:`, e.message);
+      lastError = e.message;
+    }
+  }
+
+  if (!parsed) {
+    toast(`Scan failed: ${lastError}`, 'error');
+  } else {
+    let filled = [];
+    if (parsed.name) { document.getElementById('f-name').value = parsed.name; filled.push('name'); }
+    if (parsed.category) {
+      const sel = document.getElementById('f-cat');
+      const opt = [...sel.options].find(o => o.value.toLowerCase() === parsed.category.toLowerCase());
+      if (opt) { sel.value = opt.value; filled.push('category'); }
+    }
+    if (parsed.expiryMonth) { document.getElementById('f-month').value = parseInt(parsed.expiryMonth); filled.push('month'); }
+    if (parsed.expiryYear) { document.getElementById('f-year').value = parsed.expiryYear; filled.push('year'); }
+    if (parsed.quantity) { document.getElementById('f-qty').value = parsed.quantity; filled.push('quantity'); }
+    if (parsed.use) { document.getElementById('f-use').value = parsed.use; filled.push('use'); }
+    if (filled.length > 0) toast(`AI filled: ${filled.join(', ')}`, 'success');
+    else toast('Could not extract details — try a clearer photo.', '');
+  }
+
+  btn.disabled = false;
+  btn.classList.remove('scanning');
+  btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg> Re-scan`;
+}
+
+// ─── Save Medicine (Supabase) ─────────────────────────────────────────────────
+async function saveMedicine() {
+  const name = document.getElementById('f-name')?.value.trim();
+  const cat = document.getElementById('f-cat')?.value;
+  const month = document.getElementById('f-month')?.value;
+  const year = document.getElementById('f-year')?.value;
+  if (!name) { toast('Medicine name is required','error'); return; }
+  if (!cat) { toast('Please select a category','error'); return; }
+  if (!month || !year) { toast('Please select expiry date','error'); return; }
+
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spin">⟳</span> Saving…`;
+
+  const id = genId();
+  const expiryDate = new Date(parseInt(year), parseInt(month), 0).getTime();
+
+  // Upload photo to Supabase Storage if present
+  let photoURL = '';
+  if (formPhotoBase64) {
+    toast('Uploading photo…', '');
+    photoURL = await uploadPhoto(id, formPhotoBase64);
+  }
+
+  const med = {
+    id,
+    name,
+    category: cat,
+    quantity: document.getElementById('f-qty')?.value.trim() || '',
+    use: document.getElementById('f-use')?.value.trim() || '',
+    expiryDate,
+    photoURL,
+    createdAt: Date.now()
+  };
+
+  try {
+    const { error } = await db.from('medicines').insert({
+      id: med.id,
+      name: med.name,
+      category: med.category,
+      quantity: med.quantity,
+      med_use: med.use,
+      expiry_date: med.expiryDate,
+      photo_url: med.photoURL,
+      created_at: med.createdAt
+    });
+    if (error) throw error;
+
+    medicines.push(med);
+    toast('Medicine saved to database!', 'success');
+    checkNotifications();
+    navigate('medicines');
+  } catch(e) {
+    console.error('Save error:', e);
+    toast('Failed to save: ' + (e.message || 'Unknown error'), 'error');
+    btn.disabled = false;
+    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:15px;height:15px"><polyline points="20 6 9 17 4 12"/></svg> Save Medicine`;
+  }
+}
+
+// ─── Detail Panel ─────────────────────────────────────────────────────────────
+function openDetail(id) {
+  const m = medicines.find(x => x.id === id);
+  if (!m) return;
+  const sl = statusLabel(m.expiryDate);
+  const days = daysUntil(m.expiryDate);
+  document.getElementById('detail-body').innerHTML = `
+    ${m.photoURL ? `<img class="detail-photo" src="${m.photoURL}" alt="${m.name}">` :
+      `<div class="detail-photo-ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>`}
+    <div style="margin-bottom:14px"><span class="status-badge ${sl.cls}" style="font-size:12px;padding:4px 12px">${sl.txt}</span></div>
+    <div class="detail-row"><div class="detail-lbl">Name</div><div class="detail-val" style="font-weight:700;font-size:16px">${m.name}</div></div>
+    <div class="detail-row"><div class="detail-lbl">Category</div><div class="detail-val">${m.category}</div></div>
+    ${m.quantity ? `<div class="detail-row"><div class="detail-lbl">Quantity</div><div class="detail-val">${m.quantity}</div></div>` : ''}
+    ${m.use ? `<div class="detail-row"><div class="detail-lbl">Use</div><div class="detail-val">${m.use}</div></div>` : ''}
+    <div class="detail-row"><div class="detail-lbl">Expires</div><div class="detail-val">${fmtDate(m.expiryDate)}<br><span style="font-size:12px;color:var(--text3)">${days < 0 ? `${Math.abs(days)} days ago` : days === 0 ? 'Today!' : `in ${days} days`}</span></div></div>
+    <div class="detail-row"><div class="detail-lbl">Added</div><div class="detail-val">${fmtDate(m.createdAt)}</div></div>
+    <div style="margin-top:20px;display:flex;gap:8px">
+      <button class="btn btn-outline" style="flex:1" onclick="closeDetail()">Close</button>
+      <button class="btn btn-danger" style="flex:1" onclick="closeDetail();confirmDelete('${m.id}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+        Delete
+      </button>
+    </div>`;
+  document.getElementById('detail-overlay').classList.add('open');
+}
+
+function closeDetail() {
+  document.getElementById('detail-overlay').classList.remove('open');
+}
+
+// ─── Delete (Supabase) ────────────────────────────────────────────────────────
+function confirmDelete(id) {
+  pendingDeleteId = id;
+  document.getElementById('confirm-overlay').classList.add('open');
+  document.getElementById('confirm-yes').onclick = () => doDelete(id);
+}
+
+function closeConfirm() {
+  pendingDeleteId = null;
+  document.getElementById('confirm-overlay').classList.remove('open');
+}
+
+async function doDelete(id) {
+  const med = medicines.find(m => m.id === id);
+
+  // Remove photo from Supabase Storage if it exists
+  if (med?.photoURL && med.photoURL.includes('medicine-photos')) {
+    await db.storage.from('medicine-photos').remove([`${id}.jpg`]);
+  }
+
+  const { error } = await db.from('medicines').delete().eq('id', id);
+  if (error) {
+    toast('Failed to delete from database', 'error');
+    closeConfirm();
+    return;
+  }
+
+  medicines = medicines.filter(m => m.id !== id);
+  checkNotifications();
+  closeConfirm();
+  toast('Medicine deleted', 'success');
+  if (currentPage === 'medicines') renderInPlace();
+  else if (currentPage === 'dashboard') document.getElementById('content').innerHTML = renderDashboard();
+}
+
+// ─── Settings ─────────────────────────────────────────────────────────────────
+function renderSettings() {
+  const isSet = !!apiKey;
+  return `
+  <div class="settings-card">
+    <div class="settings-section">
+      <div class="form-section-title" style="font-size:12px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:14px;display:flex;align-items:center;gap:8px">
+        🤖 AI — Photo Scanning (OpenRouter)
+        <span style="flex:1;height:1px;background:var(--teal-light);display:block"></span>
+      </div>
+      <div class="settings-desc">
+        MediTrack uses <strong>OpenRouter (Gemini 2.0 Flash)</strong> to read medicine labels from photos and auto-fill the form.
+        Get a free API key from <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--teal);font-weight:600">openrouter.ai/keys ↗</a> — no billing required, free tier available.
+      </div>
+
+      <div style="background:${isSet?'var(--green-light)':'var(--amber-light)'};border:1px solid ${isSet?'#bbf7d0':'#fde68a'};border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:16px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:${isSet?'#15803d':'#92400e'}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;flex-shrink:0">${isSet?'<path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>':'<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>'}</svg>
+        ${isSet ? 'API key is saved and active' : 'No API key set — AI scanning is disabled'}
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Gemini API Key</label>
+        <div style="display:flex;gap:8px">
+          <input class="form-input" type="password" id="key-input" placeholder="Paste your OpenRouter key (sk-or-...)" value="${apiKey}" style="flex:1;font-family:monospace;letter-spacing:1px">
+          <button class="btn btn-primary" onclick="saveKey()">Save</button>
+        </div>
+        <div class="form-hint" style="margin-top:6px">Your OpenRouter key is stored only in this browser (localStorage). It is never sent anywhere except OpenRouter's API.</div>
+      </div>
+
+      ${isSet ? `<button class="btn btn-outline" style="color:var(--red);border-color:var(--red);margin-top:6px" onclick="clearKey()">Remove Key</button>` : ''}
+    </div>
+
+    <div class="settings-section" style="border-top:1px solid var(--border);padding-top:24px">
+      <div class="form-section-title" style="font-size:12px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:14px;display:flex;align-items:center;gap:8px">
+        ☁️ Data & Storage — Supabase
+        <span style="flex:1;height:1px;background:var(--teal-light);display:block"></span>
+      </div>
+      <div class="settings-desc">
+        All medicine data is stored in your <strong>Supabase database</strong>. Photos are stored in Supabase Storage bucket <code>medicine-photos</code>.
+        Data syncs across devices and is not lost when you clear your browser. There are currently <strong>${medicines.length} medicine${medicines.length!==1?'s':''}</strong> saved.
+      </div>
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:var(--radius-sm);padding:10px 14px;font-size:13px;color:#15803d;font-weight:600;display:flex;align-items:center;gap:8px;margin-bottom:14px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Connected to Supabase
+      </div>
+      <button class="btn btn-outline" style="color:var(--red);border-color:var(--red)" onclick="confirmClearAll()">Clear All Medicine Data</button>
+    </div>
+  </div>`;
+}
+
+function saveKey() {
+  const val = document.getElementById('key-input')?.value.trim();
+  if (!val) { toast('Please paste a key first','error'); return; }
+  if (!val.startsWith('sk-or-')) { toast('That doesn\'t look like an OpenRouter key (should start with sk-or-)','error'); return; }
+  apiKey = val;
+  localStorage.setItem('meditrack_gemini_key', val);
+  toast('OpenRouter API key saved!', 'success');
+  document.getElementById('content').innerHTML = renderSettings();
+  updateKeyBadge();
+}
+
+function clearKey() {
+  apiKey = '';
+  localStorage.removeItem('meditrack_gemini_key');
+  toast('API key removed', '');
+  document.getElementById('content').innerHTML = renderSettings();
+  updateKeyBadge();
+}
+
+async function confirmClearAll() {
+  if (!confirm(`Delete all ${medicines.length} medicines? This cannot be undone.`)) return;
+  showLoader(true);
+
+  // Delete all photos from storage
+  const fileNames = medicines.filter(m => m.photoURL).map(m => `${m.id}.jpg`);
+  if (fileNames.length) {
+    await db.storage.from('medicine-photos').remove(fileNames);
+  }
+
+  // Delete all rows
+  const { error } = await db.from('medicines').delete().neq('id', '__none__');
+  showLoader(false);
+  if (error) { toast('Failed to clear data: ' + error.message, 'error'); return; }
+
+  medicines = [];
+  checkNotifications();
+  toast('All data cleared from database', '');
+  document.getElementById('content').innerHTML = renderSettings();
+}
+
+function updateKeyBadge() {
+  const badge = document.getElementById('key-badge');
+  if (!badge) return;
+  if (apiKey) {
+    badge.textContent = 'KEY SET'; badge.className = 'api-key-status set';
+  } else {
+    badge.textContent = 'NO KEY'; badge.className = 'api-key-status unset';
+  }
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeDetail(); closeConfirm(); }});
+updateKeyBadge();
+
+// Load from Supabase then render
+loadMedicines().then(() => {
+  checkNotifications();
+  render();
+});
+</script>
+</body>
+</html>
