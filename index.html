@@ -888,17 +888,20 @@ function updateKeyBadge(){const badge=document.getElementById('key-badge');if(!b
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeDetail();closeConfirm();}});
 
 db.auth.onAuthStateChange(async(event,session)=>{
-  if(session?.user){
-    if(dataLoaded) return; // already loaded, skip
+  console.log('[MediTrack] auth event:', event, !!session);
+  if(event==='SIGNED_OUT'){
+    dataLoaded=false;medicines=[];currentUser=null;currentRole='user';
+    showLoader(false);showAuthScreen();return;
+  }
+  if(session?.user && !dataLoaded){
     await onUserLoggedIn(session.user);
-  } else{
-    dataLoaded=false;
-    showLoader(false);showAuthScreen();
   }
 });
 
 showLoader(true,'Checking session…');
-db.auth.getSession().then(({data:{session}})=>{if(!session){showLoader(false);showAuthScreen();}});
+db.auth.getSession().then(({data:{session}})=>{
+  if(!session){showLoader(false);showAuthScreen();}
+});
 </script>
 </body>
 </html>
