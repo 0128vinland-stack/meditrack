@@ -473,26 +473,41 @@ async function signOut(){
 
 // ── Profile ───────────────────────────────────────────────────────────────────
 async function loadOrCreateProfile(user){
-  const{data}=await db.from('profiles').select('*').eq('id',user.id).single();
-  if(data) return data;
-  const{data:np}=await db.from('profiles').insert({id:user.id,email:user.email,role:'user',created_at:Date.now()}).select().single();
-  return np;
+  try{
+    const{data,error}=await db.from('profiles').select('*').eq('id',user.id).single();
+    console.log('[MediTrack] profile fetch:',data,error);
+    if(data) return data;
+    // Create profile
+    const{data:np,error:ie}=await db.from('profiles').insert({id:user.id,email:user.email,role:'user',created_at:Date.now()}).select().single();
+    console.log('[MediTrack] profile insert:',np,ie);
+    return np||{id:user.id,email:user.email,role:'user'};
+  }catch(e){
+    console.error('[MediTrack] profile error:',e);
+    return{id:user.id,email:user.email,role:'user'};
+  }
 }
 
 async function onUserLoggedIn(user){
   currentUser=user;
   showLoader(true,'Loading your data…');
-  const profile=await loadOrCreateProfile(user);
-  currentRole=profile?.role||'user';
-  const email=user.email||'';
-  document.getElementById('user-avatar').textContent=email.charAt(0).toUpperCase();
-  document.getElementById('user-email-display').textContent=email;
-  const rb=document.getElementById('user-role-badge');
-  rb.textContent=currentRole;rb.className=`user-role-badge${currentRole==='admin'?' admin':''}`;
-  document.getElementById('admin-nav').style.display=currentRole==='admin'?'block':'none';
-  await loadMedicines();
-  dataLoaded=true;
-  showLoader(false);showAppScreen();updateKeyBadge();checkNotifications();render();
+  try{
+    const profile=await loadOrCreateProfile(user);
+    currentRole=profile?.role||'user';
+    const email=user.email||'';
+    document.getElementById('user-avatar').textContent=email.charAt(0).toUpperCase();
+    document.getElementById('user-email-display').textContent=email;
+    const rb=document.getElementById('user-role-badge');
+    rb.textContent=currentRole;rb.className=`user-role-badge${currentRole==='admin'?' admin':''}`;
+    document.getElementById('admin-nav').style.display=currentRole==='admin'?'block':'none';
+    await loadMedicines();
+    dataLoaded=true;
+    showLoader(false);showAppScreen();updateKeyBadge();checkNotifications();render();
+  }catch(e){
+    console.error('[MediTrack] onUserLoggedIn error:',e);
+    showLoader(false);
+    toast('Login error: '+e.message,'error');
+    showAuthScreen();
+  }
 }
 
 // ── DB ────────────────────────────────────────────────────────────────────────
