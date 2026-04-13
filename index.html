@@ -415,6 +415,7 @@ const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 let medicines=[];
 let currentUser=null;
 let currentRole='user';
+let dataLoaded=false;
 let apiKey=localStorage.getItem('meditrack_gemini_key')||'';
 let currentPage='dashboard';
 let pendingDeleteId=null;
@@ -489,6 +490,7 @@ async function onUserLoggedIn(user){
   rb.textContent=currentRole;rb.className=`user-role-badge${currentRole==='admin'?' admin':''}`;
   document.getElementById('admin-nav').style.display=currentRole==='admin'?'block':'none';
   await loadMedicines();
+  dataLoaded=true;
   showLoader(false);showAppScreen();updateKeyBadge();checkNotifications();render();
 }
 
@@ -883,8 +885,13 @@ function updateKeyBadge(){const badge=document.getElementById('key-badge');if(!b
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeDetail();closeConfirm();}});
 
 db.auth.onAuthStateChange(async(event,session)=>{
-  if(session?.user) await onUserLoggedIn(session.user);
-  else{showLoader(false);showAuthScreen();}
+  if(session?.user){
+    if(dataLoaded) return; // already loaded, skip
+    await onUserLoggedIn(session.user);
+  } else{
+    dataLoaded=false;
+    showLoader(false);showAuthScreen();
+  }
 });
 
 showLoader(true,'Checking session…');
