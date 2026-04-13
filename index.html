@@ -416,6 +416,7 @@ let medicines=[];
 let currentUser=null;
 let currentRole='user';
 let dataLoaded=false;
+let isSaving=false;
 let apiKey=localStorage.getItem('meditrack_gemini_key')||'';
 let currentPage='dashboard';
 let pendingDeleteId=null;
@@ -755,6 +756,8 @@ Respond ONLY with valid JSON. No markdown, no explanation. If a field is unclear
 
 // ── Save Medicine ─────────────────────────────────────────────────────────────
 async function saveMedicine(){
+  if(isSaving) return;
+  isSaving=true;
   const name=document.getElementById('f-name')?.value.trim(),cat=document.getElementById('f-cat')?.value,month=document.getElementById('f-month')?.value,year=document.getElementById('f-year')?.value;
   if(!name){toast('Medicine name is required','error');return;}if(!cat){toast('Please select a category','error');return;}if(!month||!year){toast('Please select expiry date','error');return;}
   const btn=document.getElementById('save-btn');btn.disabled=true;btn.innerHTML=`<span class="spin">⟳</span> Saving…`;
@@ -764,8 +767,8 @@ async function saveMedicine(){
   try{
     const{error}=await db.from('medicines').insert({id:med.id,name:med.name,category:med.category,quantity:med.quantity,med_use:med.use,expiry_date:med.expiryDate,photo_url:med.photoURL,created_at:med.createdAt,user_id:currentUser.id,user_email:currentUser.email});
     if(error) throw error;
-    medicines.push(med);toast('Medicine saved!','success');checkNotifications();navigate('medicines');
-  }catch(e){console.error(e);toast('Failed to save: '+e.message,'error');btn.disabled=false;btn.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:15px;height:15px"><polyline points="20 6 9 17 4 12"/></svg> Save Medicine`;}
+    medicines.push(med);toast('Medicine saved!','success');checkNotifications();isSaving=false;navigate('medicines');
+  }catch(e){console.error(e);toast('Failed to save: '+e.message,'error');isSaving=false;btn.disabled=false;btn.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:15px;height:15px"><polyline points="20 6 9 17 4 12"/></svg> Save Medicine`;}
 }
 
 // ── Detail ────────────────────────────────────────────────────────────────────
